@@ -1,0 +1,171 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function userId() {
+      return request.auth.uid;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function role() {
+      return userDoc().role;
+    }
+
+    function companyId() {
+      return userDoc().companyId;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && role() == 'SuperAdmin';
+    }
+
+    function isCompanyAdmin() {
+      return isAuthenticated() && role() == 'CompanyAdmin';
+    }
+
+    function isAdmin() {
+      return isSuperAdmin() || isCompanyAdmin();
+    }
+
+    function isActiveUser() {
+      return isAuthenticated() && userDoc().status == 'active';
+    }
+
+    function belongsToCompany(cid) {
+      return isAuthenticated() && companyId() == cid;
+    }
+
+    // ── Companies ──────────────────────────────────────────
+    match /companies/{companyId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // ── Plans ──────────────────────────────────────────────
+    match /plans/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    // ── Users ──────────────────────────────────────────────
+    match /users/{uid} {
+      // Leitura: próprio usuário, admin da mesma empresa, superadmin
+      allow read: if isAuthenticated() && (
+        userId() == uid ||
+        isSuperAdmin() ||
+        (isCompanyAdmin() && resource.data.companyId == companyId())
+      );
+      // Criação: o próprio usuário criando seu perfil
+      allow create: if isAuthenticated() && userId() == uid;
+      // Atualização: próprio usuário (campos limitados), admin da empresa, superadmin
+      allow update: if isAuthenticated() && (
+        userId() == uid ||
+        isSuperAdmin() ||
+        (isCompanyAdmin() && resource.data.companyId == companyId())
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+    // ── Invites ────────────────────────────────────────────
+    match /invites/{inviteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAuthenticated(); // aceitar convite
+      allow delete: if isAdmin();
+    }
+
+    // ── TimeEntries ────────────────────────────────────────
+    match /timeEntries/{entryId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == userId() ||
+        (isCompanyAdmin() && resource.data.companyId == companyId())
+      );
+      allow create: if isActiveUser() && (
+        request.resource.data.userId == userId() ||
+        (isCompanyAdmin() && request.resource.data.companyId == companyId())
+      );
+      allow update, delete: if isActiveUser() && (
+        resource.data.userId == userId() ||
+        (isCompanyAdmin() && resource.data.companyId == companyId()) ||
+        isSuperAdmin()
+      );
+    }
+
+    // ── Holidays ───────────────────────────────────────────
+    match /holidays/{holidayId} {
+      allow read: if isAuthenticated();
+      // Feriados nacionais (companyId='') só SuperAdmin
+      // Feriados da empresa: CompanyAdmin da empresa
+      allow create: if isSuperAdmin() ||
+        (isCompanyAdmin() && request.resource.data.companyId == companyId());
+      allow update, delete: if isSuperAdmin() ||
+        (isCompanyAdmin() && resource.data.companyId == companyId());
+    }
+
+    // ── AbsenceTypes ───────────────────────────────────────
+    match /absenceTypes/{typeId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() || resource.data.companyId == companyId()
+      );
+      allow write: if isCompanyAdmin() && (
+        !exists(/databases/$(database)/documents/absenceTypes/$(typeId)) ||
+        resource.data.companyId == companyId()
+      ) || isSuperAdmin();
+    }
+
+    // ── Absences ───────────────────────────────────────────
+    match /absences/{absenceId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == userId() ||
+        (isCompanyAdmin() && resource.data.companyId == companyId()) ||
+        isSuperAdmin()
+      );
+      allow create: if isActiveUser() &&
+        request.resource.data.userId == userId();
+      allow update: if
+        (isCompanyAdmin() && resource.data.companyId == companyId()) ||
+        isSuperAdmin();
+      allow delete: if
+        (resource.data.userId == userId() && resource.data.status == 'pending') ||
+        isCompanyAdmin() || isSuperAdmin();
+    }
+
+    // ── Messages ───────────────────────────────────────────
+    match /messages/{msgId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if
+        isSuperAdmin() ||
+        (isCompanyAdmin() && (
+          !exists(/databases/$(database)/documents/messages/$(msgId)) ||
+          resource.data.companyId == companyId()
+        ));
+    }
+
+    // ── MessageReads ───────────────────────────────────────
+    match /messageReads/{readId} {
+      allow read, write: if isAuthenticated() &&
+        readId.matches(request.auth.uid + '_.*');
+    }
+
+    // ── AuthLogs ───────────────────────────────────────────
+    match /authLogs/{logId} {
+      allow create: if isAuthenticated();
+      allow read: if isSuperAdmin() ||
+        (isCompanyAdmin() && resource.data.companyId == companyId());
+      allow update, delete: if false;
+    }
+
+    // ── Metadata ───────────────────────────────────────────
+    match /metadata/{doc} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
