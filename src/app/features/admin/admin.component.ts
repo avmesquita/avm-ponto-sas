@@ -15,14 +15,15 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatDividerModule } from '@angular/material/divider';
-import { ShellComponent } from '../../../shared/components/shell.component';
-import { AuthService } from '../../../core/services/auth.service';
-import { UserService } from '../../../core/services/user.service';
-import { TimesheetService } from '../../../core/services/timesheet.service';
-import { AppUser, UserRole, UserStatus, AuthLog, ImportRow, ImportResult, Absence, AbsenceType, AppMessage } from '../../../core/models';
-import { MessageService } from '../../../core/services/message.service';
-import { AbsenceService } from '../../../core/services/absence.service';
-import { NotificationService } from '../../../core/services/notification.service';
+import { ShellComponent } from '../../shared/components/shell.component';
+import { AuthService } from '../../core/services/auth.service';
+import { UserService } from '../../core/services/user.service';
+import { TimesheetService } from '../../core/services/timesheet.service';
+import { AppUser, UserRole, UserStatus, AuthLog, ImportRow, ImportResult, Absence, AbsenceType, AppMessage, Invite } from '../../core/models';
+import { MessageService } from '../../core/services/message.service';
+import { AbsenceService } from '../../core/services/absence.service';
+import { InviteService } from '../../core/services/invite.service';
+import { NotificationService } from '../../core/services/notification.service';
 import {
   Firestore, collection, query, orderBy, getDocs, Timestamp
 } from '@angular/fire/firestore';
@@ -80,7 +81,7 @@ import {
                       <td mat-cell *matCellDef="let u">
                         <mat-select [(ngModel)]="u.role" (ngModelChange)="updateRole(u)"
                                     [disabled]="u.uid === currentUid" class="role-select">
-                          <mat-option [value]="UserRole.ADMIN">Admin</mat-option>
+                          <mat-option [value]="UserRole.COMPANY_ADMIN">Admin da Empresa</mat-option>
                           <mat-option [value]="UserRole.USER">User</mat-option>
                         </mat-select>
                       </td>
@@ -414,6 +415,85 @@ abc123,2026-02-15 17:30,exit,</pre>
             </div>
           </mat-tab>
 
+
+          <!-- ═══ ABA: USUÁRIOS PENDENTES & CONVITES ══════════════════════ -->
+          <mat-tab label="Convites">
+            <div class="tab-content">
+              <mat-card>
+                <mat-card-header>
+                  <mat-icon mat-card-avatar>mail</mat-icon>
+                  <mat-card-title>Convidar Usuário</mat-card-title>
+                  <mat-card-subtitle>Envia link de acesso direto por e-mail</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                  <div class="inline-form">
+                    <mat-form-field appearance="outline">
+                      <mat-label>E-mail do convidado</mat-label>
+                      <input matInput type="email" [(ngModel)]="inviteEmail">
+                      <mat-icon matSuffix>email</mat-icon>
+                    </mat-form-field>
+                    <button mat-raised-button color="primary"
+                            [disabled]="!inviteEmail || sendingInvite"
+                            (click)="sendInvite()">
+                      <mat-icon>send</mat-icon>
+                      {{ sendingInvite ? 'Enviando...' : 'Gerar convite' }}
+                    </button>
+                  </div>
+                  <div class="invite-link-box" *ngIf="lastInviteLink">
+                    <mat-icon>link</mat-icon>
+                    <span>{{ lastInviteLink }}</span>
+                    <button mat-icon-button (click)="copyInviteLink()" matTooltip="Copiar link">
+                      <mat-icon>content_copy</mat-icon>
+                    </button>
+                  </div>
+                  <p class="hint-text">O link expira em 7 dias. Envie manualmente para o convidado.</p>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card style="margin-top:16px">
+                <mat-card-header>
+                  <mat-icon mat-card-avatar>pending</mat-icon>
+                  <mat-card-title>Usuários Aguardando Aprovação</mat-card-title>
+                  <mat-card-subtitle>{{ pendingUsers.length }} pendente(s)</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                  <mat-progress-bar *ngIf="loadingPending" mode="indeterminate"></mat-progress-bar>
+                  <table mat-table [dataSource]="pendingUsers" class="full-table" *ngIf="pendingUsers.length > 0">
+                    <ng-container matColumnDef="name">
+                      <th mat-header-cell *matHeaderCellDef>Nome</th>
+                      <td mat-cell *matCellDef="let u">
+                        <div class="user-cell">
+                          <img [src]="u.photoURL || 'https://ui-avatars.com/api/?name=' + u.displayName" class="user-avatar">
+                          <div>
+                            <strong>{{ u.displayName }}</strong><br>
+                            <small>{{ u.email }}</small>
+                          </div>
+                        </div>
+                      </td>
+                    </ng-container>
+                    <ng-container matColumnDef="actions">
+                      <th mat-header-cell *matHeaderCellDef></th>
+                      <td mat-cell *matCellDef="let u">
+                        <button mat-raised-button color="primary" (click)="approveUser(u)" style="margin-right:8px">
+                          <mat-icon>check</mat-icon> Aprovar
+                        </button>
+                        <button mat-button color="warn" (click)="rejectUser(u)">
+                          <mat-icon>close</mat-icon> Rejeitar
+                        </button>
+                      </td>
+                    </ng-container>
+                    <tr mat-header-row *matHeaderRowDef="['name', 'actions']"></tr>
+                    <tr mat-row *matRowDef="let r; columns: ['name', 'actions'];"></tr>
+                  </table>
+                  <div class="empty-state" *ngIf="!loadingPending && pendingUsers.length === 0">
+                    <mat-icon>how_to_reg</mat-icon>
+                    <p>Nenhum usuário aguardando aprovação.</p>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+          </mat-tab>
+
           <!-- ═══ ABA 5: MENSAGENS / MARKETING ════════════════════════════════ -->
           <mat-tab label="Mensagens">
             <div class="tab-content">
@@ -650,6 +730,9 @@ abc123,2026-02-15 17:30,exit,</pre>
     .approved-row { background: #f1f8e9; }
     .rejected-row { background: #fce4ec; opacity: .8; }
     .empty-state { text-align: center; padding: 32px; color: #bbb; }
+    .inline-form { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; padding-top: 8px; }
+    .invite-link-box { display: flex; align-items: center; gap: 8px; background: #e8f5e9; border-radius: 8px; padding: 10px 14px; margin-top: 12px; font-size: 13px; word-break: break-all; }
+    .hint-text { font-size: 12px; color: #999; margin-top: 8px; }
 
     /* Mensagens admin */
     .msg-form-wrap { padding-top: 8px; }
@@ -700,6 +783,7 @@ export class AdminComponent implements OnInit {
   importing = false;
   importResult: ImportResult | null = null;
 
+  get currentUser() { return this.authSvc.currentUser; }
   get currentUid(): string { return this.authSvc.currentUser?.uid ?? ''; }
   get previewErrorCount(): number { return this.previewRows.filter(r => this.validateRow(r) !== null).length; }
 
@@ -707,8 +791,9 @@ export class AdminComponent implements OnInit {
     this.loadingTypes = true;
     this.loadingAbsences = true;
     await Promise.all([this.loadUsers(), this.loadLogs()]);
-    try { this.absenceTypes = await this.absenceSvc.getAbsenceTypes(); } finally { this.loadingTypes = false; }
+    try { this.absenceTypes = await this.absenceSvc.getAbsenceTypes(this.currentUser?.companyId ?? ''); } finally { this.loadingTypes = false; }
     try { this.absences = await this.absenceSvc.getAllAbsencesByCompany(this.authSvc.currentUser?.companyId ?? ''); } finally { this.loadingAbsences = false; }
+    this.loadPendingUsers();
     this.loadingMsgs = true;
     try { this.adminMessages = await this.msgSvc.getAllByCompany(this.authSvc.currentUser?.companyId ?? ''); } finally { this.loadingMsgs = false; }
   }
@@ -742,7 +827,7 @@ export class AdminComponent implements OnInit {
 
   async updateRole(user: AppUser): Promise<void> {
     try {
-      await this.userSvc.updateUserRole(user.uid, user.role);
+      await this.userSvc.updateRole(user.uid, user.role);
       this.snackBar.open(`Perfil de ${user.displayName} atualizado.`, 'OK', { duration: 3000 });
     } catch (e: unknown) {
       this.snackBar.open('Erro: ' + (e instanceof Error ? e.message : ''), 'Fechar', { duration: 5000 });
@@ -837,7 +922,7 @@ export class AdminComponent implements OnInit {
     }
     this.importing = true;
     try {
-      this.importResult = await this.timesheetSvc.importEntries(validRows, this.currentUid);
+      this.importResult = await this.timesheetSvc.importEntries(validRows, this.currentUser?.companyId ?? '', this.currentUid);
       this.snackBar.open(
         `Importação concluída: ${this.importResult.success} sucesso, ${this.importResult.failed} falha(s).`,
         'OK', { duration: 5000 }
@@ -881,6 +966,7 @@ export class AdminComponent implements OnInit {
     this.savingType = true;
     try {
       await this.absenceSvc.addAbsenceType({
+        companyId: this.currentUser?.companyId ?? '',
         name: this.newTypeName,
         color: this.newTypeColor,
         deductsBalance: false,
@@ -888,7 +974,7 @@ export class AdminComponent implements OnInit {
       });
       this.newTypeName = '';
       this.newTypeColor = '#4caf50';
-      this.absenceTypes = await this.absenceSvc.getAbsenceTypes();
+      this.absenceTypes = await this.absenceSvc.getAbsenceTypes(this.currentUser?.companyId ?? '');
       this.snackBar.open('Tipo adicionado!', 'OK', { duration: 3000 });
     } finally { this.savingType = false; }
   }
@@ -896,7 +982,7 @@ export class AdminComponent implements OnInit {
   async deleteAbsenceType(type: AbsenceType): Promise<void> {
     if (!type.id || !confirm(`Excluir o tipo "${type.name}"?`)) return;
     await this.absenceSvc.deleteAbsenceType(type.id);
-    this.absenceTypes = await this.absenceSvc.getAbsenceTypes();
+    this.absenceTypes = await this.absenceSvc.getAbsenceTypes(this.currentUser?.companyId ?? '');
     this.snackBar.open('Tipo removido.', 'OK', { duration: 3000 });
   }
 
@@ -930,6 +1016,64 @@ export class AdminComponent implements OnInit {
     const s = new Date(a.startDate + 'T12:00:00');
     const e = new Date(a.endDate + 'T12:00:00');
     return Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
+  }
+
+  // ── Convites & aprovação ─────────────────────────────────────
+  private readonly inviteSvc: InviteService = inject(InviteService);
+  inviteEmail = '';
+  sendingInvite = false;
+  lastInviteLink = '';
+  pendingUsers: AppUser[] = [];
+  loadingPending = false;
+
+  async sendInvite(): Promise<void> {
+    if (!this.inviteEmail) return;
+    this.sendingInvite = true;
+    try {
+      const company = this.authSvc.currentUser!;
+      const token = this.inviteSvc.generateToken();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      // Precisamos do nome da empresa — carregamos do usuário atual
+      const companySlug = company.companySlug ?? '';
+      await this.inviteSvc.create({
+        companyId: company.companyId,
+        companySlug,
+        companyName: companySlug,
+        companyCountry: company.companyCountry ?? 'BR',
+        email: this.inviteEmail,
+        token,
+        expiresAt,
+        createdBy: company.uid,
+      });
+      this.lastInviteLink = `${window.location.origin}/${companySlug}/invite/${token}`;
+      this.inviteEmail = '';
+      this.snackBar.open('Convite gerado!', 'OK', { duration: 3000 });
+    } finally { this.sendingInvite = false; }
+  }
+
+  copyInviteLink(): void {
+    navigator.clipboard.writeText(this.lastInviteLink);
+    this.snackBar.open('Link copiado!', 'OK', { duration: 2000 });
+  }
+
+  async loadPendingUsers(): Promise<void> {
+    this.loadingPending = true;
+    try {
+      this.pendingUsers = await this.userSvc.getPendingByCompany(this.authSvc.currentUser?.companyId ?? '');
+    } finally { this.loadingPending = false; }
+  }
+
+  async approveUser(user: AppUser): Promise<void> {
+    await this.authSvc.approveUser(user.uid);
+    this.pendingUsers = this.pendingUsers.filter(u => u.uid !== user.uid);
+    this.snackBar.open(`${user.displayName} aprovado!`, 'OK', { duration: 3000 });
+  }
+
+  async rejectUser(user: AppUser): Promise<void> {
+    if (!confirm(`Suspender acesso de ${user.displayName}?`)) return;
+    await this.authSvc.suspendUser(user.uid);
+    this.pendingUsers = this.pendingUsers.filter(u => u.uid !== user.uid);
+    this.snackBar.open(`${user.displayName} suspenso.`, 'OK', { duration: 3000 });
   }
 
   // ── Mensagens ─────────────────────────────────────────────

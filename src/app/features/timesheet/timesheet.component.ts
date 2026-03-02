@@ -10,16 +10,16 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
-import { ShellComponent } from '../../../shared/components/shell.component';
-import { AuthService } from '../../../core/services/auth.service';
-import { TimesheetService } from '../../../core/services/timesheet.service';
-import { HolidayService } from '../../../core/services/holiday.service';
-import { UserService } from '../../../core/services/user.service';
+import { ShellComponent } from '../../shared/components/shell.component';
+import { AuthService } from '../../core/services/auth.service';
+import { TimesheetService } from '../../core/services/timesheet.service';
+import { HolidayService } from '../../core/services/holiday.service';
+import { UserService } from '../../core/services/user.service';
 import { ActivatedRoute } from '@angular/router';
-import { AbsenceService } from '../../../core/services/absence.service';
-import { Absence } from '../../../core/models';
-import { AppUser, DailySummary, Holiday } from '../../../core/models';
-import { getDaysInMonth, formatDateToString } from '../../../shared/utils/date.utils';
+import { AbsenceService } from '../../core/services/absence.service';
+import { Absence } from '../../core/models';
+import { AppUser, DailySummary, Holiday } from '../../core/models';
+import { getDaysInMonth, formatDateToString } from '../../shared/utils/date.utils';
 import { EditDayDialogComponent, EditDayDialogData } from './edit-day-dialog.component';
 
 @Component({
@@ -313,7 +313,7 @@ export class TimesheetComponent implements OnInit {
     this.viewingUser = this.loggedUser;
     this.selectedUserId = this.loggedUser?.uid ?? '';
     this.todayStr = this.timesheetSvc.getTodayString();
-    this.holidays = await this.holidaySvc.getHolidays(this.loggedUser?.companyId ?? '');
+    this.holidays = await this.holidaySvc.getHolidays(this.loggedUser?.companyId ?? '', this.loggedUser?.companyCountry ?? 'BR');
 
     if (this.isAdmin) {
       this.allUsers = await this.userSvc.getAllUsers();
@@ -383,8 +383,9 @@ export class TimesheetComponent implements OnInit {
     const dialogRef = this.dialog.open(EditDayDialogComponent, {
       data: {
         date: day.date,
-        userId: this.viewingUser.uid,       // dono das batidas
-        editorUid: this.loggedUser.uid,     // quem está editando (para log)
+        userId: this.viewingUser.uid,
+        companyId: this.viewingUser.companyId,
+        editorUid: this.loggedUser.uid,
         entries: [...day.entries],
         canEdit: this.canEditDay(day.date),
       } as EditDayDialogData,
@@ -394,8 +395,8 @@ export class TimesheetComponent implements OnInit {
     dialogRef.afterClosed().subscribe(() => this.loadSummaries());
   }
 
-  hasManualEntries(day: DailySummary): boolean { return day.entries.some(e => e.manual); }
-  hasImportedEntries(day: DailySummary): boolean { return day.entries.some(e => e.imported); }
+  hasManualEntries(day: DailySummary): boolean { return day.entries.some((e: any) => e.manual); }
+  hasImportedEntries(day: DailySummary): boolean { return day.entries.some((e: any) => e.imported); }
 
   getPillTooltip(entry: { manual?: boolean; manualNote?: string; imported?: boolean }): string {
     if (entry.manual && entry.manualNote) return `Manual: ${entry.manualNote}`;

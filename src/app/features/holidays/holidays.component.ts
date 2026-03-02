@@ -11,10 +11,11 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatChipsModule } from '@angular/material/chips';
-import { ShellComponent } from '../../../shared/components/shell.component';
-import { AuthService } from '../../../core/services/auth.service';
-import { HolidayService } from '../../../core/services/holiday.service';
-import { Holiday } from '../../../core/models';
+import { ShellComponent } from '../../shared/components/shell.component';
+import { AuthService } from '../../core/services/auth.service';
+import { I18nService } from '../../core/services/i18n.service';
+import { HolidayService } from '../../core/services/holiday.service';
+import { Holiday } from '../../core/models';
 
 @Component({
   selector: 'app-holidays',
@@ -134,6 +135,7 @@ import { Holiday } from '../../../core/models';
 })
 export class HolidaysComponent implements OnInit {
   private readonly authSvc: AuthService = inject(AuthService);
+  readonly i18n: I18nService = inject(I18nService);
   private readonly holidaySvc: HolidayService = inject(HolidayService);
   private readonly snackBar: MatSnackBar = inject(MatSnackBar);
   private readonly fb: FormBuilder = inject(FormBuilder);
@@ -161,7 +163,7 @@ export class HolidaysComponent implements OnInit {
   async loadHolidays(): Promise<void> {
     this.loading = true;
     try {
-      this.holidays = await this.holidaySvc.getHolidays(this.authSvc.currentUser?.companyId ?? '');
+      this.holidays = await this.holidaySvc.getHolidays(this.authSvc.currentUser?.companyId ?? '', this.authSvc.currentUser?.companyCountry ?? 'BR');
       this.filterHolidays();
     } finally {
       this.loading = false;
@@ -177,10 +179,18 @@ export class HolidaysComponent implements OnInit {
     this.saving = true;
     try {
       const v = this.form.value;
+      const nameSlug = (v.name as string ?? '')
+        .toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/\s+/g, '_')
+        .replace(/[^a-z0-9_]/g, '');
       await this.holidaySvc.addHoliday({
         date: v.date!,
         name: v.name!,
+        nameKey: `holiday.custom.${nameSlug}`,
         hoursExpected: Number(v.hoursExpected ?? 0),
+        companyId: this.authSvc.currentUser?.companyId ?? '',
+        country: this.authSvc.currentUser?.companyCountry ?? 'BR',
         national: v.national ?? false,
         createdBy: this.authSvc.currentUser!.uid,
       });
@@ -207,10 +217,20 @@ export class HolidaysComponent implements OnInit {
     }
   }
 
+  holidayLabel(h: Holiday): string {
+    if (h.nameKey) {
+      const t = this.i18n.translate(h.nameKey);
+      if (t !== h.nameKey) return t;
+    }
+    return h.name ?? h.nameKey ?? '—';
+  }
+
   async seedNationals(): Promise<void> {
     this.seeding = true;
     try {
-      await this.holidaySvc.seedNationalHolidays(this.currentYear, this.authSvc.currentUser!.uid);
+      const country = this.authSvc.currentUser?.companyCountry ?? 'BR';
+      const added = await this.holidaySvc.seedNationalHolidays(this.currentYear, country, this.authSvc.currentUser!.uid);
+      this.snackBar.open(`${added} feriado(s) importado(s)!`, 'OK', { duration: 3000 });
       this.snackBar.open(`Feriados nacionais de ${this.currentYear} importados!`, 'OK', { duration: 3000 });
       await this.loadHolidays();
     } finally {

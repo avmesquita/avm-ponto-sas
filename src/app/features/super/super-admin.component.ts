@@ -62,6 +62,22 @@ import { Company, Plan, CompanyStatus, AppMessage } from '../../core/models';
                       <mat-hint>Acesso: /{{ newCompany.slug }}/login</mat-hint>
                     </mat-form-field>
                     <mat-form-field appearance="outline">
+                      <mat-label>País</mat-label>
+                      <mat-select [(ngModel)]="newCompany.country">
+                        <mat-option value="BR">🇧🇷 Brasil</mat-option>
+                        <mat-option value="PT">🇵🇹 Portugal</mat-option>
+                        <mat-option value="US">🇺🇸 Estados Unidos</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline">
+                      <mat-label>País</mat-label>
+                      <mat-select [(ngModel)]="newCompany.country">
+                        <mat-option value="BR">🇧🇷 Brasil</mat-option>
+                        <mat-option value="PT">🇵🇹 Portugal</mat-option>
+                        <mat-option value="US">🇺🇸 United States</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline">
                       <mat-label>Plano</mat-label>
                       <mat-select [(ngModel)]="newCompany.planId" (ngModelChange)="onPlanChange()">
                         <mat-option *ngFor="let p of plans" [value]="p.id">
@@ -70,7 +86,7 @@ import { Company, Plan, CompanyStatus, AppMessage } from '../../core/models';
                       </mat-select>
                     </mat-form-field>
                     <button mat-raised-button color="primary"
-                            [disabled]="!newCompany.name || !newCompany.slug || !newCompany.planId || savingCompany"
+                            [disabled]="!newCompany.name || !newCompany.slug || !newCompany.planId || !newCompany.country || savingCompany"
                             (click)="createCompany()">
                       <mat-icon>add</mat-icon> Criar empresa
                     </button>
@@ -87,6 +103,10 @@ import { Company, Plan, CompanyStatus, AppMessage } from '../../core/models';
                     <strong>{{ c.name }}</strong><br>
                     <small class="slug-link">/{{ c.slug }}/login</small>
                   </td>
+                </ng-container>
+                <ng-container matColumnDef="country">
+                  <th mat-header-cell *matHeaderCellDef>País</th>
+                  <td mat-cell *matCellDef="let c">{{ c.country }}</td>
                 </ng-container>
                 <ng-container matColumnDef="plan">
                   <th mat-header-cell *matHeaderCellDef>Plano</th>
@@ -271,10 +291,10 @@ export class SuperAdminComponent implements OnInit {
   loadingCompanies = false;
   savingCompany = false; savingPlan = false; savingMsg = false;
 
-  companyColumns = ['name', 'plan', 'status', 'actions'];
+  companyColumns = ['name', 'country', 'plan', 'status', 'actions'];
   planColumns = ['name', 'maxUsers', 'price', 'actions'];
 
-  newCompany: Partial<Company> = { name: '', slug: '', planId: '' };
+  newCompany: Partial<Company> = { name: '', slug: '', planId: '', country: 'BR' };
   newPlan: Partial<Plan> = { name: '', maxUsers: 10, price: 0, currency: 'BRL', active: true };
   newMsg: Partial<AppMessage> = { title: '', body: '', icon: 'new_releases', iconColor: '#1a237e' };
 
@@ -308,6 +328,7 @@ export class SuperAdminComponent implements OnInit {
         name: this.newCompany.name!, slug: this.newCompany.slug!,
         planId: this.newCompany.planId!, planName: this.newCompany.planName,
         maxUsers: this.newCompany.maxUsers ?? 10,
+        country: this.newCompany.country ?? 'BR',        
         status: CompanyStatus.TRIAL, createdBy: this.authSvc.currentUser!.uid,
       });
       this.companies = [...this.companies, c];

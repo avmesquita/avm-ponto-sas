@@ -11,7 +11,7 @@ export class AbsenceService {
 
   async getAbsenceTypes(companyId: string): Promise<AbsenceType[]> {
     const q = query(
-      collection(this.firestore, 'absenceTypes'),
+      collection(this.firestore, 'saasAbsenceTypes'),
       where('companyId', '==', companyId),
       orderBy('name', 'asc')
     );
@@ -20,18 +20,18 @@ export class AbsenceService {
   }
 
   async addAbsenceType(type: Omit<AbsenceType, 'id' | 'createdAt'>): Promise<AbsenceType> {
-    const ref = await addDoc(collection(this.firestore, 'absenceTypes'), {
+    const ref = await addDoc(collection(this.firestore, 'saasAbsenceTypes'), {
       ...type, createdAt: serverTimestamp(),
     });
     return { ...type, id: ref.id, createdAt: new Date() };
   }
 
   async deleteAbsenceType(id: string): Promise<void> {
-    await deleteDoc(doc(this.firestore, 'absenceTypes', id));
+    await deleteDoc(doc(this.firestore, 'saasAbsenceTypes', id));
   }
 
   async requestAbsence(absence: Omit<Absence, 'id' | 'requestedAt' | 'status'>): Promise<Absence> {
-    const ref = await addDoc(collection(this.firestore, 'absences'), {
+    const ref = await addDoc(collection(this.firestore, 'saasAbsences'), {
       companyId: absence.companyId,
       userId: absence.userId,
       userDisplayName: absence.userDisplayName ?? null,
@@ -49,7 +49,7 @@ export class AbsenceService {
 
   async getAbsencesByUser(userId: string): Promise<Absence[]> {
     const q = query(
-      collection(this.firestore, 'absences'),
+      collection(this.firestore, 'saasAbsences'),
       where('userId', '==', userId),
       orderBy('startDate', 'desc')
     );
@@ -59,7 +59,7 @@ export class AbsenceService {
 
   async getAllAbsencesByCompany(companyId: string): Promise<Absence[]> {
     const q = query(
-      collection(this.firestore, 'absences'),
+      collection(this.firestore, 'saasAbsences'),
       where('companyId', '==', companyId),
       orderBy('requestedAt', 'desc')
     );
@@ -68,7 +68,7 @@ export class AbsenceService {
   }
 
   async getApprovedAbsencesForPeriod(userId: string, startDate: string, endDate: string): Promise<Absence[]> {
-    const q = query(collection(this.firestore, 'absences'), where('userId', '==', userId));
+    const q = query(collection(this.firestore, 'saasAbsences'), where('userId', '==', userId));
     const snap = await getDocs(q);
     return snap.docs
       .map(d => this.mapAbsence(d.id, d.data() as Record<string, unknown>))
@@ -76,13 +76,13 @@ export class AbsenceService {
   }
 
   async reviewAbsence(absenceId: string, status: Extract<AbsenceStatus, 'approved'|'rejected'>, reviewedBy: string, reviewNote?: string): Promise<void> {
-    await updateDoc(doc(this.firestore, 'absences', absenceId), {
+    await updateDoc(doc(this.firestore, 'saasAbsences', absenceId), {
       status, reviewedBy, reviewNote: reviewNote ?? null, reviewedAt: serverTimestamp(),
     });
   }
 
   async deleteAbsence(id: string): Promise<void> {
-    await deleteDoc(doc(this.firestore, 'absences', id));
+    await deleteDoc(doc(this.firestore, 'saasAbsences', id));
   }
 
   private mapType(id: string, d: Record<string, unknown>): AbsenceType {

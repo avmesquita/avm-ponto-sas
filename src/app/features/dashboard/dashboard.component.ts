@@ -7,13 +7,13 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterModule, ActivatedRoute } from '@angular/router';
-import { ShellComponent } from '../../../shared/components/shell.component';
-import { AuthService } from '../../../core/services/auth.service';
-import { TimesheetService } from '../../../core/services/timesheet.service';
-import { HolidayService } from '../../../core/services/holiday.service';
-import { AbsenceService } from '../../../core/services/absence.service';
-import { NotificationService } from '../../../core/services/notification.service';
-import { AppUser, DailySummary, Holiday } from '../../../core/models';
+import { ShellComponent } from '../../shared/components/shell.component';
+import { AuthService } from '../../core/services/auth.service';
+import { TimesheetService } from '../../core/services/timesheet.service';
+import { HolidayService } from '../../core/services/holiday.service';
+import { AbsenceService } from '../../core/services/absence.service';
+import { NotificationService } from '../../core/services/notification.service';
+import { AppUser, DailySummary, Holiday } from '../../core/models';
 
 @Component({
   selector: 'app-dashboard',
@@ -249,7 +249,7 @@ export class DashboardComponent implements OnInit {
     this.loadingToday = true;
     try {
       const [holidays, absences] = await Promise.all([
-        this.holidaySvc.getHolidays(),
+        this.holidaySvc.getHolidays(this.user?.companyId ?? '', this.user?.companyCountry ?? 'BR'),
         this.absenceSvc.getApprovedAbsencesForPeriod(this.user.uid, this.today, this.today),
       ]);
       this.todaySummary = await this.timesheetSvc.getDailySummary(this.user, this.today, holidays, absences);
@@ -262,7 +262,7 @@ export class DashboardComponent implements OnInit {
     if (!this.user) return;
     this.punching = true;
     try {
-      const entry = await this.timesheetSvc.punchClock(this.user.uid);
+      const entry = await this.timesheetSvc.punch(this.user);
       const label = entry.type === 'entry' ? 'Entrada' : 'Saída';
       this.snackBar.open(`✅ ${label} registrada às ${this.formatTime(entry.timestamp)}`, 'OK', { duration: 4000 });
       await this.loadTodaySummary();

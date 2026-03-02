@@ -73,7 +73,7 @@ export class NotificationService {
 
     try {
       const [holidays, absences, entries] = await Promise.all([
-        this.holidaySvc.getHolidays(user.companyId),
+        this.holidaySvc.getHolidays(user.companyId, user.companyCountry ?? 'BR'),
         this.absenceSvc.getApprovedAbsencesForPeriod(user.uid, yesterday, yesterday),
         this.timesheetSvc.getEntriesForDay(user.uid, yesterday),
       ]);

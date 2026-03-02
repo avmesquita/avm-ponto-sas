@@ -13,7 +13,7 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { AuthService } from '../../core/services/auth.service';
 import { MessageService } from '../../core/services/message.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { AppMessage } from '../../core/models';
+import { AppMessage, UserRole } from '../../core/models';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -81,7 +81,7 @@ const MOBILE_BREAKPOINT = 768;
                  class="avatar" [alt]="user.displayName">
             <div class="user-details">
               <span class="user-name">{{ user.displayName }}</span>
-              <span class="role-badge" [class.admin-badge]="user.role === 'Admin'">{{ user.role }}</span>
+              <span class="role-badge" [class.admin-badge]="user.role === 'CompanyAdmin' || user.role === 'SuperAdmin'">{{ user.role }}</span>
             </div>
           </div>
           <button mat-icon-button (click)="logout()" matTooltip="Sair">

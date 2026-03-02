@@ -11,6 +11,7 @@ import {
 import { Router } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 import { AppUser, AuthLog, UserRole, UserStatus } from '../models';
+import { Timestamp } from 'firebase/firestore/lite';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -39,10 +40,10 @@ export class AuthService {
   }
 
   // ── Login com Google ─────────────────────────────────────
-  async loginWithGoogle(companyId: string, companySlug: string): Promise<AppUser> {
+  async loginWithGoogle(companyId: string, companySlug: string, companyCountry = 'BR'): Promise<AppUser> {
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(this.auth, provider);
-    return this.handlePostLogin(result.user, companyId, companySlug);
+    return this.handlePostLogin(result.user, companyId, companySlug, undefined, companyCountry);
   }
 
   // ── Login com email/senha ────────────────────────────────
@@ -58,11 +59,11 @@ export class AuthService {
   // ── Registro com email/senha ─────────────────────────────
   async registerWithEmail(
     email: string, password: string, displayName: string,
-    companyId: string, companySlug: string
+    companyId: string, companySlug: string, companyCountry = 'BR'
   ): Promise<AppUser> {
     const result = await createUserWithEmailAndPassword(this.auth, email, password);
     await updateProfile(result.user, { displayName });
-    return this.handlePostLogin(result.user, companyId, companySlug, displayName);
+    return this.handlePostLogin(result.user, companyId, companySlug, displayName, companyCountry);
   }
 
   // ── Logout ───────────────────────────────────────────────
@@ -89,13 +90,13 @@ export class AuthService {
 
   // ── Aprovar / suspender usuário ──────────────────────────
   async approveUser(uid: string): Promise<void> {
-    await updateDoc(doc(this.firestore, 'users', uid), {
+    await updateDoc(doc(this.firestore, 'saasUsers', uid), {
       status: UserStatus.ACTIVE, updatedAt: serverTimestamp()
     });
   }
 
   async suspendUser(uid: string): Promise<void> {
-    await updateDoc(doc(this.firestore, 'users', uid), {
+    await updateDoc(doc(this.firestore, 'saasUsers', uid), {
       status: UserStatus.SUSPENDED, updatedAt: serverTimestamp()
     });
   }
@@ -105,11 +106,12 @@ export class AuthService {
     firebaseUser: User,
     companyId: string,
     companySlug: string,
-    displayName?: string
+    displayName?: string,
+    companyCountry = 'BR'
   ): Promise<AppUser> {
     let appUser = await this.loadUser(firebaseUser.uid);
     if (!appUser) {
-      appUser = await this.createUser(firebaseUser, companyId, companySlug, displayName);
+      appUser = await this.createUser(firebaseUser, companyId, companySlug, displayName, companyCountry);
       await this.logAuthAction(appUser, 'REGISTER');
     } else {
       await this.logAuthAction(appUser, 'LOGIN');
@@ -119,7 +121,7 @@ export class AuthService {
   }
 
   private async loadUser(uid: string): Promise<AppUser | null> {
-    const snap = await getDoc(doc(this.firestore, 'users', uid));
+    const snap = await getDoc(doc(this.firestore, 'saasUsers', uid));
     if (!snap.exists()) return null;
     const d = snap.data() as Record<string, unknown>;
     return {
@@ -129,11 +131,12 @@ export class AuthService {
       photoURL: d['photoURL'] as string | undefined,
       role: d['role'] as UserRole,
       status: (d['status'] as UserStatus) ?? UserStatus.ACTIVE,
-      companyId: (d['companyId'] as string) ?? '',
-      companySlug: d['companySlug'] as string | undefined,
+      companyId:      (d['companyId']      as string) ?? '',
+      companySlug:    d['companySlug']    as string | undefined,
+      companyCountry: (d['companyCountry'] as string | undefined) ?? 'BR',
       workHoursPerDay: (d['workHoursPerDay'] as number) ?? 8,
-      createdAt: d['createdAt']?.toDate?.() ?? new Date(),
-      updatedAt: d['updatedAt']?.toDate?.() ?? new Date(),
+      createdAt: d['createdAt'] instanceof Timestamp ? d['createdAt'].toDate() : new Date(),
+      updatedAt: d['updatedAt'] instanceof Timestamp ? d['updatedAt'].toDate() : new Date(),
     };
   }
 
@@ -141,7 +144,8 @@ export class AuthService {
     firebaseUser: User,
     companyId: string,
     companySlug: string,
-    displayName?: string
+    displayName?: string,
+    companyCountry = 'BR'
   ): Promise<AppUser> {
     // Primeiro usuário da empresa vira CompanyAdmin
     const isFirstUser = await this.isFirstInCompany(companyId);
@@ -150,15 +154,16 @@ export class AuthService {
       email: firebaseUser.email ?? '',
       displayName: displayName ?? firebaseUser.displayName ?? 'Usuário',
       photoURL: firebaseUser.photoURL ?? undefined,
-      role: isFirstUser ? UserRole.COMPANY_ADMIN : UserRole.USER,
-      status: isFirstUser ? UserStatus.ACTIVE : UserStatus.PENDING,
+      role:           isFirstUser ? UserRole.COMPANY_ADMIN : UserRole.USER,
+      status:         isFirstUser ? UserStatus.ACTIVE : UserStatus.PENDING,
       companyId,
       companySlug,
+      companyCountry,
       workHoursPerDay: 8,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    await setDoc(doc(this.firestore, 'users', firebaseUser.uid), {
+    await setDoc(doc(this.firestore, 'saasUsers', firebaseUser.uid), {
       ...newUser,
       photoURL: newUser.photoURL ?? null,
       createdAt: serverTimestamp(),
@@ -169,7 +174,7 @@ export class AuthService {
 
   private async isFirstInCompany(companyId: string): Promise<boolean> {
     // Usa metadata por empresa para evitar query cara
-    const ref = doc(this.firestore, 'metadata', `company_${companyId}`);
+    const ref = doc(this.firestore, 'saasMetadata', `company_${companyId}`);
     const snap = await getDoc(ref);
     if (!snap.exists()) {
       await setDoc(ref, { initialized: true });
@@ -179,7 +184,7 @@ export class AuthService {
   }
 
   private async logAuthAction(user: AppUser, action: AuthLog['action']): Promise<void> {
-    await addDoc(collection(this.firestore, 'authLogs'), {
+    await addDoc(collection(this.firestore, 'saasAuthLogs'), {
       companyId: user.companyId ?? null,
       userId: user.uid,
       email: user.email,

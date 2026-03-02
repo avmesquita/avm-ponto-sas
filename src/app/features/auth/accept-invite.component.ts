@@ -104,7 +104,7 @@ export class AcceptInviteComponent implements OnInit {
     try {
       await this.authSvc.registerWithEmail(
         this.invite.email, this.password, this.displayName,
-        this.invite.companyId, this.invite.companySlug
+        this.invite.companyId, this.invite.companySlug, this.invite.companyCountry ?? 'BR'
       );
       await this.inviteSvc.accept(this.invite.id!);
       // Usuário convidado já nasce ativo (diferente do auto-registro)

@@ -40,6 +40,7 @@ export interface Company {
   planId: string;
   planName?: string;
   maxUsers: number;
+  country: string;       // ISO 3166-1 alpha-2 — define feriados nacionais carregados
   status: CompanyStatus;
   createdAt: Date;
   createdBy: string;
@@ -56,6 +57,7 @@ export interface AppUser {
   status: UserStatus;
   companyId: string;
   companySlug?: string;
+  companyCountry: string;  // ISO 3166-1 — desnormalizado de Company.country
   workHoursPerDay: number;
   createdAt: Date;
   updatedAt: Date;
@@ -70,6 +72,7 @@ export interface Invite {
   companyId: string;
   companySlug: string;
   companyName: string;
+  companyCountry: string;  // desnormalizado para usar no accept-invite
   email: string;
   token: string;
   status: InviteStatus;
@@ -141,9 +144,11 @@ export interface Inconsistency {
 
 export interface Holiday {
   id?: string;
-  companyId: string;
+  companyId: string;     // '' = feriado do sistema (por país)
+  country: string;       // ISO 3166-1 alpha-2: 'BR', 'PT', 'US' — '' para feriados de empresa
   date: string;
-  name: string;
+  nameKey: string;       // chave ngx-translate: 'holiday.christmas'
+  name?: string;         // fallback legado / feriados criados manualmente
   national: boolean;
   hoursExpected?: number;
   createdBy: string;
