@@ -10,7 +10,7 @@ export class InviteService {
   private readonly firestore: Firestore = inject(Firestore);
 
   async create(invite: Omit<Invite, 'id' | 'createdAt' | 'status'>): Promise<Invite> {
-    const ref = await addDoc(collection(this.firestore, 'invites'), {
+    const ref = await addDoc(collection(this.firestore, 'saasInvites'), {
       ...invite,
       status: 'pending',
       createdAt: serverTimestamp(),
@@ -27,7 +27,7 @@ export class InviteService {
   }
 
   async getByToken(token: string): Promise<Invite | null> {
-    const q = query(collection(this.firestore, 'invites'), where('token', '==', token));
+    const q = query(collection(this.firestore, 'saasInvites'), where('token', '==', token));
     const snap = await getDocs(q);
     if (snap.empty) return null;
     const d = snap.docs[0]!;
@@ -36,7 +36,7 @@ export class InviteService {
 
   async getByCompany(companyId: string): Promise<Invite[]> {
     const q = query(
-      collection(this.firestore, 'invites'),
+      collection(this.firestore, 'saasInvites'),
       where('companyId', '==', companyId),
       where('status', '==', 'pending')
     );
@@ -45,14 +45,14 @@ export class InviteService {
   }
 
   async accept(inviteId: string): Promise<void> {
-    await updateDoc(doc(this.firestore, 'invites', inviteId), {
+    await updateDoc(doc(this.firestore, 'saasInvites', inviteId), {
       status: 'accepted' as InviteStatus,
       acceptedAt: serverTimestamp(),
     });
   }
 
   async revoke(inviteId: string): Promise<void> {
-    await updateDoc(doc(this.firestore, 'invites', inviteId), {
+    await updateDoc(doc(this.firestore, 'saasInvites', inviteId), {
       status: 'expired' as InviteStatus,
     });
   }
@@ -64,9 +64,10 @@ export class InviteService {
   private map(id: string, d: Record<string, unknown>): Invite {
     return {
       id,
-      companyId: d['companyId'] as string,
-      companySlug: d['companySlug'] as string,
-      companyName: d['companyName'] as string,
+      companyId:      d['companyId']      as string,
+      companySlug:    d['companySlug']    as string,
+      companyName:    d['companyName']    as string,
+      companyCountry: (d['companyCountry'] as string | undefined) ?? 'BR',
       email: d['email'] as string,
       token: d['token'] as string,
       status: d['status'] as InviteStatus,

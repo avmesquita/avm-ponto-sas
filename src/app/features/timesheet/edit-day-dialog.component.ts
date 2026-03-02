@@ -16,6 +16,7 @@ import { TimeEntry } from '../../core/models';
 export interface EditDayDialogData {
   date: string;
   userId: string;
+  companyId: string;
   editorUid: string;
   entries: TimeEntry[];
   canEdit: boolean;   // false = somente leitura (mês anterior)
@@ -235,7 +236,7 @@ export class EditDayDialogComponent {
     try {
       const v = this.editForm.value as { type: TimeEntry['type']; time: string; manualNote: string };
       await this.timesheetSvc.updateManualEntry(
-        this.editingEntry.id!, this.data.date, v.time, v.type, v.manualNote, this.data.editorUid
+        this.editingEntry.id!, v.time, v.type, v.manualNote, this.data.editorUid
       );
       // Atualiza localmente
       const [hh, mm] = v.time.split(':').map(Number);
@@ -271,10 +272,10 @@ export class EditDayDialogComponent {
     this.savingIndex = -2;
     try {
       const v = this.addForm.value as { type: TimeEntry['type']; time: string; manualNote: string };
-      const entry = await this.timesheetSvc.addManualEntry(
-        this.data.userId, this.data.date, v.time, v.type, v.manualNote, this.data.editorUid
+      const entry: TimeEntry = await this.timesheetSvc.addManualEntry(
+        this.data.userId, this.data.companyId, this.data.date, v.time, v.type, v.manualNote, this.data.editorUid
       );
-      this.entries = [...this.entries, entry].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+      if (entry) this.entries = [...this.entries, entry].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
       this.addForm.reset({ type: 'entry', time: '', manualNote: '' });
     } finally {
       this.savingIndex = -1;

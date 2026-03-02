@@ -3,8 +3,16 @@ import {
   Firestore, collection, addDoc, query, where, getDocs,
   orderBy, doc, deleteDoc, updateDoc, serverTimestamp, Timestamp
 } from '@angular/fire/firestore';
-import { isWeekend, differenceInMinutes } from 'date-fns';
 import { TimeEntry, DailySummary, Inconsistency, Holiday, AppUser, ImportRow, ImportResult, Absence } from '../models';
+
+function isWeekend(date: Date): boolean {
+  const d = date.getDay();
+  return d === 0 || d === 6;
+}
+
+function differenceInMinutes(a: Date, b: Date): number {
+  return Math.floor((a.getTime() - b.getTime()) / 60000);
+}
 
 @Injectable({ providedIn: 'root' })
 export class TimesheetService {
@@ -27,7 +35,7 @@ export class TimesheetService {
       type,
       createdAt: now,
     };
-    const ref = await addDoc(collection(this.firestore, 'timeEntries'), {
+    const ref = await addDoc(collection(this.firestore, 'saasTimeEntries'), {
       ...entry,
       timestamp: serverTimestamp(),
       createdAt: serverTimestamp(),
@@ -37,7 +45,7 @@ export class TimesheetService {
 
   async getEntriesForDay(userId: string, date: string): Promise<TimeEntry[]> {
     const q = query(
-      collection(this.firestore, 'timeEntries'),
+      collection(this.firestore, 'saasTimeEntries'),
       where('userId', '==', userId),
       where('date', '==', date),
       orderBy('timestamp', 'asc')
@@ -48,7 +56,7 @@ export class TimesheetService {
 
   async getEntriesForPeriod(userId: string, startDate: string, endDate: string): Promise<TimeEntry[]> {
     const q = query(
-      collection(this.firestore, 'timeEntries'),
+      collection(this.firestore, 'saasTimeEntries'),
       where('userId', '==', userId),
       where('date', '>=', startDate),
       where('date', '<=', endDate),
@@ -131,28 +139,34 @@ export class TimesheetService {
     return inc;
   }
 
-  async addManualEntry(userId: string, companyId: string, date: string, time: string, type: 'entry'|'exit', note: string, editorUid: string): Promise<void> {
+  async addManualEntry(userId: string, companyId: string, date: string, time: string, type: 'entry'|'exit', note: string, editorUid: string): Promise<TimeEntry> {
     const [h, m] = time.split(':').map(Number);
     const timestamp = new Date(date + 'T12:00:00');
     timestamp.setHours(h!, m!, 0, 0);
-    await addDoc(collection(this.firestore, 'timeEntries'), {
+    const now = new Date();
+    const ref = await addDoc(collection(this.firestore, 'saasTimeEntries'), {
       companyId, userId, date, timestamp: serverTimestamp(), type,
       manual: true, manualNote: note, manualBy: editorUid, manualAt: serverTimestamp(),
       createdAt: serverTimestamp(),
     });
+    return {
+      id: ref.id, companyId, userId, date, timestamp, type,
+      manual: true, manualNote: note, manualBy: editorUid, manualAt: now,
+      createdAt: now,
+    };
   }
 
   async updateManualEntry(entryId: string, time: string, type: 'entry'|'exit', note: string, editorUid: string): Promise<void> {
     const [h, m] = time.split(':').map(Number);
     const now = new Date(); now.setHours(h!, m!, 0, 0);
-    await updateDoc(doc(this.firestore, 'timeEntries', entryId), {
+    await updateDoc(doc(this.firestore, 'saasTimeEntries', entryId), {
       timestamp: serverTimestamp(), type,
       manual: true, manualNote: note, manualBy: editorUid, manualAt: serverTimestamp(),
     });
   }
 
   async deleteEntry(entryId: string): Promise<void> {
-    await deleteDoc(doc(this.firestore, 'timeEntries', entryId));
+    await deleteDoc(doc(this.firestore, 'saasTimeEntries', entryId));
   }
 
   async importEntries(rows: ImportRow[], companyId: string, importedBy: string): Promise<ImportResult> {
@@ -163,7 +177,7 @@ export class TimesheetService {
         if (!datePart || !timePart) throw new Error('Formato inválido');
         const [h, min] = timePart.split(':').map(Number);
         const ts = new Date(datePart + 'T12:00:00'); ts.setHours(h!, min!, 0, 0);
-        await addDoc(collection(this.firestore, 'timeEntries'), {
+        await addDoc(collection(this.firestore, 'saasTimeEntries'), {
           companyId, userId: row.userId, date: datePart,
           timestamp: serverTimestamp(), type: row.type,
           note: row.note ?? null, imported: true, importedBy, importedAt: serverTimestamp(),

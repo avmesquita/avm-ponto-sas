@@ -118,7 +118,7 @@ export class RegisterComponent implements OnInit {
     if (this.password !== this.confirmPassword) { this.error = 'As senhas não coincidem.'; return; }
     this.loading = true; this.error = '';
     try {
-      await this.authSvc.registerWithEmail(this.email, this.password, this.displayName, this.company.id, this.slug);
+      await this.authSvc.registerWithEmail(this.email, this.password, this.displayName, this.company.id, this.slug, this.company.country ?? 'BR');
       this.router.navigate([`/${this.slug}/pending`]);
     } catch (e: unknown) {
       this.error = e instanceof Error ? e.message : 'Erro ao criar conta.';

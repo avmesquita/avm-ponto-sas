@@ -123,7 +123,7 @@ export class CompanyLoginComponent implements OnInit {
     if (!this.company?.id) return;
     this.loading = true; this.error = '';
     try {
-      const user = await this.authSvc.loginWithGoogle(this.company.id, this.slug);
+      const user = await this.authSvc.loginWithGoogle(this.company.id, this.slug, this.company.country ?? 'BR');
       this.navigateAfterLogin(user.status);
     } catch (e: unknown) {
       this.error = e instanceof Error ? e.message : 'Erro ao entrar com Google.';

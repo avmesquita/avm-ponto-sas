@@ -10,14 +10,14 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { ShellComponent } from '../../../shared/components/shell.component';
-import { AuthService } from '../../../core/services/auth.service';
-import { TimesheetService } from '../../../core/services/timesheet.service';
-import { HolidayService } from '../../../core/services/holiday.service';
-import { UserService } from '../../../core/services/user.service';
-import { AbsenceService } from '../../../core/services/absence.service';
-import { DailySummary, Holiday, AppUser, Inconsistency, Absence } from '../../../core/models';
-import { getDaysInMonth, formatDateToString } from '../../../shared/utils/date.utils';
+import { ShellComponent } from '../../shared/components/shell.component';
+import { AuthService } from '../../core/services/auth.service';
+import { TimesheetService } from '../../core/services/timesheet.service';
+import { HolidayService } from '../../core/services/holiday.service';
+import { UserService } from '../../core/services/user.service';
+import { AbsenceService } from '../../core/services/absence.service';
+import { DailySummary, Holiday, AppUser, Inconsistency, Absence } from '../../core/models';
+import { getDaysInMonth, formatDateToString } from '../../shared/utils/date.utils';
 
 @Component({
   selector: 'app-reports',
@@ -232,9 +232,12 @@ export class ReportsComponent implements OnInit {
   get allInconsistencies(): Inconsistency[] { return this.summaries.flatMap(d => d.inconsistencies); }
 
   async ngOnInit(): Promise<void> {
-    this.holidays = await this.holidaySvc.getHolidays();
+    this.holidays = await this.holidaySvc.getHolidays(this.authSvc.currentUser?.companyId ?? '', this.authSvc.currentUser?.companyCountry ?? 'BR');
     if (this.isAdmin) {
-      this.allUsers = await this.userSvc.getAllUsers();
+      const companyId = this.authSvc.currentUser?.companyId ?? '';
+      this.allUsers = companyId
+        ? await this.userSvc.getByCompany(companyId)
+        : await this.userSvc.getAllUsers();
     }
     await this.loadReport();
   }

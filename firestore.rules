@@ -11,7 +11,7 @@ service cloud.firestore {
     }
 
     function userDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return get(/databases/$(database)/documents/saasUsers/$(request.auth.uid)).data;
     }
 
     function role() {
@@ -43,19 +43,19 @@ service cloud.firestore {
     }
 
     // ── Companies ──────────────────────────────────────────
-    match /companies/{companyId} {
+    match /saasCompanies/{companyId} {
       allow read: if isAuthenticated();
       allow create, update, delete: if isSuperAdmin();
     }
 
     // ── Plans ──────────────────────────────────────────────
-    match /plans/{planId} {
+    match /saasPlans/{planId} {
       allow read: if isAuthenticated();
       allow write: if isSuperAdmin();
     }
 
     // ── Users ──────────────────────────────────────────────
-    match /users/{uid} {
+    match /saasUsers/{uid} {
       // Leitura: próprio usuário, admin da mesma empresa, superadmin
       allow read: if isAuthenticated() && (
         userId() == uid ||
@@ -74,7 +74,7 @@ service cloud.firestore {
     }
 
     // ── Invites ────────────────────────────────────────────
-    match /invites/{inviteId} {
+    match /saasInvites/{inviteId} {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
       allow update: if isAuthenticated(); // aceitar convite
@@ -82,7 +82,7 @@ service cloud.firestore {
     }
 
     // ── TimeEntries ────────────────────────────────────────
-    match /timeEntries/{entryId} {
+    match /saasTimeEntries/{entryId} {
       allow read: if isAuthenticated() && (
         isSuperAdmin() ||
         resource.data.userId == userId() ||
@@ -100,7 +100,7 @@ service cloud.firestore {
     }
 
     // ── Holidays ───────────────────────────────────────────
-    match /holidays/{holidayId} {
+    match /saasHolidays/{holidayId} {
       allow read: if isAuthenticated();
       // Feriados nacionais (companyId='') só SuperAdmin
       // Feriados da empresa: CompanyAdmin da empresa
@@ -111,18 +111,18 @@ service cloud.firestore {
     }
 
     // ── AbsenceTypes ───────────────────────────────────────
-    match /absenceTypes/{typeId} {
+    match /saasAbsenceTypes/{typeId} {
       allow read: if isAuthenticated() && (
         isSuperAdmin() || resource.data.companyId == companyId()
       );
       allow write: if isCompanyAdmin() && (
-        !exists(/databases/$(database)/documents/absenceTypes/$(typeId)) ||
+        !exists(/databases/$(database)/documents/saasAbsenceTypes/$(typeId)) ||
         resource.data.companyId == companyId()
       ) || isSuperAdmin();
     }
 
     // ── Absences ───────────────────────────────────────────
-    match /absences/{absenceId} {
+    match /saasAbsences/{absenceId} {
       allow read: if isAuthenticated() && (
         resource.data.userId == userId() ||
         (isCompanyAdmin() && resource.data.companyId == companyId()) ||
@@ -139,24 +139,24 @@ service cloud.firestore {
     }
 
     // ── Messages ───────────────────────────────────────────
-    match /messages/{msgId} {
+    match /saasMessages/{msgId} {
       allow read: if isAuthenticated();
       allow create, update, delete: if
         isSuperAdmin() ||
         (isCompanyAdmin() && (
-          !exists(/databases/$(database)/documents/messages/$(msgId)) ||
+          !exists(/databases/$(database)/documents/saasMessages/$(msgId)) ||
           resource.data.companyId == companyId()
         ));
     }
 
     // ── MessageReads ───────────────────────────────────────
-    match /messageReads/{readId} {
+    match /saasMessageReads/{readId} {
       allow read, write: if isAuthenticated() &&
         readId.matches(request.auth.uid + '_.*');
     }
 
     // ── AuthLogs ───────────────────────────────────────────
-    match /authLogs/{logId} {
+    match /saasAuthLogs/{logId} {
       allow create: if isAuthenticated();
       allow read: if isSuperAdmin() ||
         (isCompanyAdmin() && resource.data.companyId == companyId());
@@ -164,7 +164,7 @@ service cloud.firestore {
     }
 
     // ── Metadata ───────────────────────────────────────────
-    match /metadata/{doc} {
+    match /saasMetadata/{doc} {
       allow read, write: if isAuthenticated();
     }
   }

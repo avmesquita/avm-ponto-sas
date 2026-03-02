@@ -20,7 +20,7 @@ export class MessageService {
 
   private async fetchActive(companyId: string): Promise<AppMessage[]> {
     const q = query(
-      collection(this.firestore, 'messages'),
+      collection(this.firestore, 'saasMessages'),
       where('companyId', '==', companyId),
       where('active', '==', true),
       orderBy('publishedAt', 'desc')
@@ -31,7 +31,7 @@ export class MessageService {
 
   async getAllByCompany(companyId: string): Promise<AppMessage[]> {
     const q = query(
-      collection(this.firestore, 'messages'),
+      collection(this.firestore, 'saasMessages'),
       where('companyId', '==', companyId),
       orderBy('publishedAt', 'desc')
     );
@@ -44,7 +44,7 @@ export class MessageService {
   }
 
   async create(msg: Omit<AppMessage, 'id' | 'publishedAt'>): Promise<AppMessage> {
-    const ref = await addDoc(collection(this.firestore, 'messages'), {
+    const ref = await addDoc(collection(this.firestore, 'saasMessages'), {
       ...msg, icon: msg.icon ?? null, iconColor: msg.iconColor ?? null,
       link: msg.link ?? null, publishedAt: serverTimestamp(),
     });
@@ -52,23 +52,23 @@ export class MessageService {
   }
 
   async update(id: string, data: Partial<AppMessage>): Promise<void> {
-    await updateDoc(doc(this.firestore, 'messages', id), {
+    await updateDoc(doc(this.firestore, 'saasMessages', id), {
       ...data, icon: data.icon ?? null, iconColor: data.iconColor ?? null, link: data.link ?? null,
     });
   }
 
   async delete(id: string): Promise<void> {
-    await deleteDoc(doc(this.firestore, 'messages', id));
+    await deleteDoc(doc(this.firestore, 'saasMessages', id));
   }
 
   async getReadIds(userId: string): Promise<Set<string>> {
-    const q = query(collection(this.firestore, 'messageReads'), where('userId', '==', userId));
+    const q = query(collection(this.firestore, 'saasMessageReads'), where('userId', '==', userId));
     const snap = await getDocs(q);
     return new Set(snap.docs.map(d => (d.data() as Record<string,unknown>)['messageId'] as string));
   }
 
   async markAsRead(userId: string, messageId: string): Promise<void> {
-    await setDoc(doc(this.firestore, 'messageReads', `${userId}_${messageId}`), {
+    await setDoc(doc(this.firestore, 'saasMessageReads', `${userId}_${messageId}`), {
       userId, messageId, readAt: serverTimestamp(),
     });
   }

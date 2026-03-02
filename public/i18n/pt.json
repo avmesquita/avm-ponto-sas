@@ -1,0 +1,30 @@
+{
+  "holiday": {
+    "new_year":              "Confraternização Universal",
+    "carnival_monday":       "Carnaval (Segunda-feira)",
+    "carnival_tuesday":      "Carnaval (Terça-feira)",
+    "good_friday":           "Sexta-feira Santa",
+    "labor_day":             "Dia do Trabalho",
+    "corpus_christi":        "Corpus Christi",
+    "all_souls_day":         "Finados",
+    "all_saints_day":        "Todos os Santos",
+    "christmas":             "Natal",
+    "assumption_of_mary":    "Assunção de Nossa Senhora",
+    "immaculate_conception": "Imaculada Conceição",
+    "br_tiradentes":         "Tiradentes",
+    "br_independence":       "Independência do Brasil",
+    "br_nossa_senhora":      "Nossa Senhora Aparecida",
+    "br_republic":           "Proclamação da República",
+    "br_black_consciousness":"Consciência Negra",
+    "pt_freedom_day":        "Dia da Liberdade",
+    "pt_portugal_day":       "Dia de Portugal",
+    "pt_republic_day":       "Implantação da República",
+    "pt_restoration":        "Restauração da Independência",
+    "us_mlk_day":            "Dia de Martin Luther King Jr.",
+    "us_presidents_day":     "Dia dos Presidentes",
+    "us_memorial_day":       "Dia Memorial",
+    "us_juneteenth":         "Juneteenth",
+    "us_independence":       "Dia da Independência dos EUA",
+    "us_thanksgiving":       "Dia de Ação de Graças"
+  }
+}
